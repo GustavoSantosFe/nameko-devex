@@ -104,11 +104,64 @@ scenarios:
       extract-jsonpath:
         order_id: $.id
         default: NOT_FOUND
-        
+
     - if: '"${order_id}" == "NOT_FOUND"'
       then:
         - action: continue
-  
+
+    # 5. delete Product
+    # TODO: this test causes failures on other tests, find a way to only delete
+    # products that won't be used in other tests to prevent that
+    - url: /products/${product_id}
+      label: product-delete
+      think-time: uniform(0s, 0s)
+      method: DELETE
+
+      assert:
+      - contains:
+        - 200
+        subject: http-code
+        not: false
+      extract-jsonpath:
+        product_key: $.id
+        default: NOT_FOUND
+
+    # 6. List Orders
+    - url: /orders
+      label: orders-list
+      think-time: uniform(0s, 0s)
+      method: GET
+
+      assert:
+      - contains:
+        - 200
+        subject: http-code
+        not: false
+
+    # 7. List Orders custom limit
+    - url: /orders?limit=2
+      label: orders-list-custom-limit
+      think-time: uniform(0s, 0s)
+      method: GET
+
+      assert:
+      - contains:
+        - 200
+        subject: http-code
+        not: false
+
+    # 8. List Orders custom limit above allowed
+    - url: /orders?limit=2000
+      label: orders-list-above-max
+      think-time: uniform(0s, 0s)
+      method: GET
+
+      assert:
+      - contains:
+        - 200
+        subject: http-code
+        not: false
+
 reporting:
 - module: final-stats
   dump-xml: stats.xml

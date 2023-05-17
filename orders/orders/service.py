@@ -14,6 +14,13 @@ class OrdersService:
     event_dispatcher = EventDispatcher()
 
     @rpc
+    def list_orders(self, limit = 50):
+        actual_limit = min(200, limit)
+        orders = self.db.query(Order).limit(actual_limit).all()
+
+        return OrderSchema(many=True).dump(orders).data
+
+    @rpc
     def get_order(self, order_id):
         order = self.db.query(Order).get(order_id)
 

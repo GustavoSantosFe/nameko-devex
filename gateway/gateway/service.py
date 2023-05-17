@@ -74,6 +74,29 @@ class GatewayService(object):
             json.dumps({'id': product_data['id']}), mimetype='application/json'
         )
 
+    @http(
+        "DELETE", "/products/<string:product_id>",
+        expected_exceptions=(BadRequest)
+    )
+    def delete_product(self, request, product_id):
+        """Deletes product by `product_id`
+        """
+        product = self.products_rpc.delete(product_id)
+        return Response(
+            None,
+            mimetype='application/json'
+        )
+
+    @http("GET", "/orders", expected_exceptions=BadRequest)
+    def list_orders(self, request):
+        """Lists the order details for all orders.
+        """
+        orders = self.orders_rpc.list_orders()
+        return Response(
+            GetOrderSchema(many=True).dumps(orders).data,
+            mimetype='application/json'
+        )
+
     @http("GET", "/orders/<int:order_id>", expected_exceptions=OrderNotFound)
     def get_order(self, request, order_id):
         """Gets the order details for the order given by `order_id`.
@@ -93,8 +116,11 @@ class GatewayService(object):
         # raise``OrderNotFound``
         order = self.orders_rpc.get_order(order_id)
 
-        # Retrieve all products from the products service
-        product_map = {prod['id']: prod for prod in self.products_rpc.list()}
+        # list of product ids in the order
+        product_ids = self._product_ids(order)
+
+        # Retrieve all products in the order from the products service
+        product_map = {prod['id']: prod for prod in self.products_rpc.list(product_ids)}
 
         # get the configured image root
         image_root = config['PRODUCT_IMAGE_ROOT']
@@ -156,6 +182,9 @@ class GatewayService(object):
         return Response(json.dumps({'id': id_}), mimetype='application/json')
 
     def _create_order(self, order_data):
+        # list of product ids in the order
+        product_ids = self._product_ids(order_data)
+
         # check order product ids are valid
         valid_product_ids = {prod['id'] for prod in self.products_rpc.list()}
         for item in order_data['order_details']:
@@ -172,3 +201,6 @@ class GatewayService(object):
             serialized_data['order_details']
         )
         return result['id']
+
+    def _product_ids(self, order):
+        return [*map(lambda product: product['product_id'], order['order_details'])]
